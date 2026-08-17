@@ -1,0 +1,409 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "WashNPress API",
+    "version": "2.0.0",
+    "description": "Complete API documentation for the WashNPress backend."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local Development Server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication and Onboarding"
+    },
+    {
+      "name": "Catalog",
+      "description": "Plans, Addons, and Societies"
+    },
+    {
+      "name": "Resident",
+      "description": "Pickups, Orders, Subscriptions, Wallet, and Support for Residents"
+    },
+    {
+      "name": "Operator",
+      "description": "Operations and Order Management for Operators"
+    },
+    {
+      "name": "Admin",
+      "description": "Admin Reports and Configurations"
+    },
+    {
+      "name": "Payments",
+      "description": "Payment Webhooks"
+    },
+    {
+      "name": "System",
+      "description": "Health and Metrics"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Enter your session token as a Bearer token. (The backend supports both cookies and Bearer tokens for session auth)"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "details": { "type": "object" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "phone": { "type": "string" },
+          "fullName": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["active", "blocked", "deleted"] },
+          "roles": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Resident": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "societyId": { "type": "string" },
+          "unitNumber": { "type": "string" },
+          "towerBlock": { "type": "string", "nullable": true },
+          "preferredWindows": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "orderCode": { "type": "string" },
+          "state": { "type": "string" },
+          "items": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "Subscription": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "planId": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      },
+      "Slot": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "date": { "type": "string" },
+          "window": { "type": "string" },
+          "capacityRemaining": { "type": "integer" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Health Check",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/v1/auth/otp/send": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Send OTP",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "phone": { "type": "string" } }, "required": ["phone"] } } }
+        },
+        "responses": {
+          "200": { "description": "Success" },
+          "400": { "description": "Bad Request" }
+        }
+      }
+    },
+    "/v1/auth/otp/verify": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Verify OTP",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "phone": { "type": "string" }, "otp": { "type": "string" } }, "required": ["phone", "otp"] } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "token": { "type": "string" }, "user": { "$ref": "#/components/schemas/User" }, "needsOnboarding": { "type": "boolean" } } } } }
+          },
+          "400": { "description": "Bad Request" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/v1/auth/onboarding": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Complete Onboarding",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "fullName": { "type": "string" }, "societyId": { "type": "string" }, "unitNumber": { "type": "string" }, "towerBlock": { "type": "string" }, "preferredWindows": { "type": "array", "items": { "type": "string" } } }, "required": ["fullName", "societyId", "unitNumber"] } } }
+        },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "type": "object", "properties": { "resident": { "$ref": "#/components/schemas/Resident" } } } } } },
+          "400": { "description": "Bad Request" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get current user session",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Success" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Logged out" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/v1/plans": { "get": { "tags": ["Catalog"], "summary": "List Plans", "responses": { "200": { "description": "Success" } } } },
+    "/v1/addons": { "get": { "tags": ["Catalog"], "summary": "List Addons", "responses": { "200": { "description": "Success" } } } },
+    "/v1/societies": { "get": { "tags": ["Catalog"], "summary": "List Societies", "responses": { "200": { "description": "Success" } } } },
+    "/v1/societies/nearby": { "get": { "tags": ["Catalog"], "summary": "List Nearby Societies", "responses": { "200": { "description": "Success" } } } },
+    
+    "/v1/slots": {
+      "get": {
+        "tags": ["Resident"], "summary": "List Slots", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "date", "in": "query", "schema": { "type": "string" }, "description": "YYYY-MM-DD" }],
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/pickups": {
+      "post": {
+        "tags": ["Resident"], "summary": "Book Pickup", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "slotId": { "type": "string" }, "specialInstructions": { "type": "string" }, "recurring": { "type": "boolean" }, "recurringDays": { "type": "array", "items": { "type": "number" } }, "addonIds": { "type": "array", "items": { "type": "string" } } }, "required": ["slotId"] } } } },
+        "responses": { "201": { "description": "Created" }, "409": { "description": "Slot Unavailable" } }
+      }
+    },
+    "/v1/pickups/reschedule": {
+      "post": {
+        "tags": ["Resident"], "summary": "Reschedule Pickup", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "pickupId": { "type": "string" }, "slotId": { "type": "string" } }, "required": ["pickupId", "slotId"] } } } },
+        "responses": { "200": { "description": "Success" }, "409": { "description": "Conflict" } }
+      }
+    },
+    "/v1/pickups/cancel": {
+      "post": {
+        "tags": ["Resident"], "summary": "Cancel Pickup", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "pickupId": { "type": "string" } }, "required": ["pickupId"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/orders/{id}": {
+      "get": {
+        "tags": ["Resident"], "summary": "Get Order", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Success" }, "404": { "description": "Not Found" } }
+      }
+    },
+    "/v1/orders/{id}/tracking": {
+      "get": {
+        "tags": ["Resident"], "summary": "Order Tracking", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/orders/{id}/rate": {
+      "post": {
+        "tags": ["Resident"], "summary": "Rate Order", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "rating": { "type": "number" }, "comment": { "type": "string" } }, "required": ["rating"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/orders/{id}/dispute": {
+      "post": {
+        "tags": ["Resident"], "summary": "Dispute Order", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "description": { "type": "string" } }, "required": ["description"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/subscription": {
+      "get": { "tags": ["Resident"], "summary": "Get Subscription", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/subscription/subscribe": {
+      "post": {
+        "tags": ["Resident"], "summary": "Subscribe", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "planId": { "type": "string" }, "cycle": { "type": "string", "enum": ["monthly", "annual"] } }, "required": ["planId"] } } } },
+        "responses": { "201": { "description": "Created" }, "402": { "description": "Insufficient Balance" } }
+      }
+    },
+    "/v1/subscription/change": {
+      "post": {
+        "tags": ["Resident"], "summary": "Change Plan", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "planId": { "type": "string" } }, "required": ["planId"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/subscription/pause": {
+      "post": {
+        "tags": ["Resident"], "summary": "Pause Subscription", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "until": { "type": "string" } }, "required": ["until"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/subscription/cancel": {
+      "post": {
+        "tags": ["Resident"], "summary": "Cancel Subscription", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "reason": { "type": "string" } }, "required": ["reason"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/wallet": {
+      "get": { "tags": ["Resident"], "summary": "Get Wallet Balance", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/wallet/transactions": {
+      "get": { "tags": ["Resident"], "summary": "Get Wallet Transactions", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/wallet/topup": {
+      "post": {
+        "tags": ["Resident"], "summary": "Topup Wallet", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "amountPaise": { "type": "integer" } }, "required": ["amountPaise"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/wallet/{residentId}/balance": {
+      "get": {
+        "tags": ["Resident"], "summary": "Get Balance by Resident ID",
+        "parameters": [{ "name": "residentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/support/tickets": {
+      "get": { "tags": ["Resident"], "summary": "List Support Tickets", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } },
+      "post": {
+        "tags": ["Resident"], "summary": "Create Support Ticket", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "orderId": { "type": "string" }, "category": { "type": "string" }, "description": { "type": "string" } }, "required": ["category", "description"] } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/v1/support/tickets/{id}/reply": {
+      "post": {
+        "tags": ["Resident"], "summary": "Reply to Ticket", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "body": { "type": "string" } }, "required": ["body"] } } } },
+        "responses": { "200": { "description": "Success" }, "404": { "description": "Not Found" } }
+      }
+    },
+    "/v1/sustainability/impact": {
+      "get": { "tags": ["Resident"], "summary": "Get Sustainability Impact", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/operations/bookings": {
+      "get": { "tags": ["Operator"], "summary": "List Bookings", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/operations/orders/{id}/picked-up": {
+      "post": {
+        "tags": ["Operator"], "summary": "Mark Picked Up", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "items": { "type": "array", "items": { "type": "object", "properties": { "category": { "type": "string" }, "quantity": { "type": "integer" } } } } }, "required": ["items"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/operations/orders/{id}/advance": {
+      "post": {
+        "tags": ["Operator"], "summary": "Advance Order Stage", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "to": { "type": "string", "enum": ["in_wash", "ironing", "qc"] } }, "required": ["to"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/operations/orders/{id}/qc": {
+      "post": {
+        "tags": ["Operator"], "summary": "Submit QC", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "pass": { "type": "boolean" }, "reason": { "type": "string" } }, "required": ["pass"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/operations/orders/{id}/out-for-delivery": {
+      "post": {
+        "tags": ["Operator"], "summary": "Out for Delivery", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/operations/orders/{id}/deliver": {
+      "post": {
+        "tags": ["Operator"], "summary": "Deliver Order", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "deliveryCount": { "type": "integer" }, "discrepancyReason": { "type": "string" } }, "required": ["deliveryCount"] } } } },
+        "responses": { "200": { "description": "Success" } }
+      }
+    },
+    "/v1/operations/units/{unitId}/earnings": {
+      "get": {
+        "tags": ["Operator"], "summary": "Get Unit Earnings", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "unitId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Success" }, "404": { "description": "Not Found" } }
+      }
+    },
+    "/v1/admin/reports/subscriptions": {
+      "get": { "tags": ["Admin"], "summary": "Subscriptions Report", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/admin/reports/revenue": {
+      "get": { "tags": ["Admin"], "summary": "Revenue Report", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/admin/reports/operations": {
+      "get": { "tags": ["Admin"], "summary": "Operations Report", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/admin/reports/sustainability": {
+      "get": { "tags": ["Admin"], "summary": "Sustainability Report", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/admin/reports/garment-risk": {
+      "get": { "tags": ["Admin"], "summary": "Garment Risk Report", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/admin/slots": {
+      "post": {
+        "tags": ["Admin"], "summary": "Create Slot", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "societyId": { "type": "string" }, "date": { "type": "string" }, "window": { "type": "string" }, "startTime": { "type": "string" }, "endTime": { "type": "string" }, "capacityTotal": { "type": "integer" } }, "required": ["societyId", "date", "window", "startTime", "endTime", "capacityTotal"] } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/v1/admin/audit": {
+      "get": { "tags": ["Admin"], "summary": "Audit Logs", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Success" } } }
+    },
+    "/v1/payments/webhook": {
+      "post": {
+        "tags": ["Payments"], "summary": "Payment Webhook",
+        "parameters": [{ "name": "x-webhook-signature", "in": "header", "required": false, "schema": { "type": "string" }, "description": "Needs verification: check the actual configured header name for webhook signatures" }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object" } } } },
+        "responses": { "200": { "description": "Success" }, "400": { "description": "Bad Request" }, "401": { "description": "Unauthorized" } }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
 import { metrics } from "../observability/metrics";
 import type { Container } from "../container";
 import { registerHealthRoutes } from "./routes/health";
@@ -13,9 +14,40 @@ import { registerPaymentRoutes } from "./routes/payments";
 import { registerSupportRoutes } from "./routes/support";
 import { registerSustainabilityRoutes } from "./routes/sustainability";
 import { registerAdminRoutes } from "./routes/admin";
-
+import { readFileSync } from "fs";
+import { join } from "path";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
 export function buildApp(container: Container): FastifyInstance {
   const app = Fastify({ logger: { level: container.config.app.logLevel } });
+
+  const openapiPath = join(process.cwd(), "docs", "openapi.json");
+  const openapiDocument = JSON.parse(readFileSync(openapiPath, "utf-8"));
+
+  app.register(swagger, {
+    mode: "static",
+    specification: {
+      document: openapiDocument
+    }
+  });
+
+  app.register(swaggerUi, {
+    routePrefix: "/docs"
+  });
+
+  app.register(cors, {
+    origin: (origin, cb) => {
+      const allowedOrigins = container.config.app.frontendUrl.split(",").map((url) => url.trim());
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true);
+        return;
+      }
+      cb(new Error("Not allowed by CORS"), false);
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+    credentials: true,
+  });
 
   // Capture the raw JSON body so payment webhook signatures verify over exact bytes.
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {

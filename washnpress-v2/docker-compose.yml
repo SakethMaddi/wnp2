@@ -1,15 +1,6 @@
-# Two ways to run:
-#   1. App only, in-memory storage, no database needed:
-#        docker compose up -d app
-#   2. Full stack with Postgres and Redis:
-#        docker compose --profile full up -d
-#
-# The host port is configurable so a busy port 8080 is never a blocker:
-#        HOST_PORT=8081 docker compose up -d app
-# Then point the smoke test at it:
-#        BASE_URL=http://localhost:8081 ./scripts/smoke-test.sh
 services:
   app:
+    profiles: ["memory"]
     build: .
     ports:
       - "${HOST_PORT:-8080}:8080"
@@ -49,7 +40,7 @@ services:
       POSTGRES_PASSWORD: washnpress
       POSTGRES_DB: washnpress
     ports:
-      - "${PG_PORT:-5432}:5432"
+      - "${PG_PORT:-5433}:5432"
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - pgdata:/var/lib/postgresql/data

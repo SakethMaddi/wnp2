@@ -6,6 +6,7 @@ export const configSchema = z.object({
     host: z.string(),
     port: z.number().int().positive(),
     logLevel: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]),
+    frontendUrl: z.string(),
   }),
   storage: z.object({
     driver: z.enum(["memory", "postgres"]),

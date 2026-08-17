@@ -40,6 +40,7 @@ function setPath(target: Json, path: string[], value: unknown): void {
 // Explicit convenience aliases, so common values have a short env name too.
 const ALIASES: Record<string, string[]> = {
   PORT: ["app", "port"],
+  FRONTEND_URL: ["app", "frontendUrl"],
   DATABASE_URL: ["storage", "postgres", "url"],
   REDIS_URL: ["cache", "redis", "url"],
   RAZORPAY_WEBHOOK_SECRET: ["payments", "webhookSecret"],
@@ -96,6 +97,7 @@ function lowerFirst(segment: string): string {
     recurringgenerationintervalseconds: "recurringGenerationIntervalSeconds",
     reconciliationintervalseconds: "reconciliationIntervalSeconds",
     outboxintervalseconds: "outboxIntervalSeconds",
+    frontendurl: "frontendUrl",
   };
   return map[lower] ?? lower;
 }

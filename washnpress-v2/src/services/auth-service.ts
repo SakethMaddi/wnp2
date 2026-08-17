@@ -31,17 +31,53 @@ export class AuthService {
     return { session, user };
   }
 
-  async completeOnboarding(userId: string, input: { fullName: string; societyId: string; unitNumber: string; towerBlock?: string; preferredWindows?: string[] }): Promise<Resident> {
-    const user = await this.store.users.get(userId);
-    if (!user) throw new Error("User not found");
-    user.fullName = input.fullName;
-    await this.store.users.put(user);
-    const resident: Resident = {
-      id: randomUUID(), userId, societyId: input.societyId, unitNumber: input.unitNumber,
-      towerBlock: input.towerBlock ?? null, preferredWindows: input.preferredWindows ?? [],
-    };
-    return this.store.residents.put(resident);
+  async completeOnboarding(
+  session: Session,
+  input: {
+    fullName: string;
+    societyId: string;
+    unitNumber: string;
+    towerBlock?: string;
+    preferredWindows?: string[];
   }
+): Promise<Resident> {
+  const user = await this.store.users.get(session.userId);
+  if (!user) throw new Error("User not found");
+
+  user.fullName = input.fullName;
+  await this.store.users.put(user);
+
+  const existing = (
+    await this.store.residents.find((r) => r.userId === session.userId)
+  )[0] ?? null;
+
+  const resident: Resident = existing
+    ? {
+        ...existing,
+        societyId: input.societyId,
+        unitNumber: input.unitNumber,
+        towerBlock: input.towerBlock ?? null,
+        preferredWindows: input.preferredWindows ?? [],
+      }
+    : {
+        id: randomUUID(),
+        userId: session.userId,
+        societyId: input.societyId,
+        unitNumber: input.unitNumber,
+        towerBlock: input.towerBlock ?? null,
+        preferredWindows: input.preferredWindows ?? [],
+      };
+
+  await this.store.residents.put(resident);
+
+  // Update the current session
+  session.residentId = resident.id;
+  session.societyId = resident.societyId;
+
+  await this.sessions.create(session);
+
+  return resident;
+}
 
   async sessionFromToken(token: string | undefined): Promise<Session | null> {
     if (!token) return null;

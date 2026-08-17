@@ -29,7 +29,7 @@ export function registerAuthRoutes(app: FastifyInstance, container: Container): 
     if (!session) return;
     const parsed = onboardSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
-    const resident = await container.auth.completeOnboarding(session.userId, parsed.data);
+    const resident = await container.auth.completeOnboarding(session, parsed.data);
     return reply.code(201).send({ resident });
   });
 
